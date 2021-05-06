@@ -26,32 +26,57 @@ namespace Raccoon.Devkits.Gateway.Client
                 .Select(address => new Uri(address));
         public static async Task<IApplicationBuilder> RegisterToConsulAsync(this IApplicationBuilder app,
             string serviceName,
-             Uri? consulUri=null)
+             Uri? consulUri=null,
+             Func<Exception,Task>? exceptionHandler=null)
         {
-            if (consulUri is null) { consulUri = new Uri("http://localhost:8500"); }
-            using ConsulClient consulClient = new(options=>options.Address=consulUri);
-            IEnumerable<Task> registerTasks = app.GetAddresses().Select(address =>
-                consulClient.Agent.ServiceRegister(new()
+            try
+            {
+                if (consulUri is null) { consulUri = new Uri("http://localhost:8500"); }
+                using ConsulClient consulClient = new(options => options.Address = consulUri);
+                foreach (Uri address in app.GetAddresses())
                 {
-                    ID=$"{serviceName}:{address}",
-                    Name = serviceName,
-                    Address = address.Host,
-                    Port = address.Port
-                }));
-            await Task.WhenAll(registerTasks);
-            return app;
+                    await consulClient.Agent.ServiceRegister(new()
+                    {
+                        ID = $"{serviceName}:{address}",
+                        Name = serviceName,
+                        Address = address.Host,
+                        Port = address.Port
+                    });
+                }
+                return app;
+            }catch(Exception excption)
+            {
+                if(exceptionHandler is not null)
+                {
+                    await exceptionHandler.Invoke(excption);
+                    return app;
+                }
+                else { throw; }
+            }
         }
 
         public static async Task<IApplicationBuilder> DeregisterFromConsulAsync(this IApplicationBuilder app,           
             string serviceName,
-            Uri? consulUri=null)
+            Uri? consulUri=null,
+            Func<Exception, Task>? exceptionHandler = null)
         {
-            if (consulUri is null) { consulUri = new Uri("http://localhost:8500"); }
-            using ConsulClient consulClient = new(options => options.Address = consulUri);
-            IEnumerable<Task> deregisterTasks = app.GetAddresses()
-                .Select(address => consulClient.Agent.ServiceDeregister($"{serviceName}:{address}"));
-            await Task.WhenAll(deregisterTasks);
-            return app;
+            try
+            {
+                if (consulUri is null) { consulUri = new Uri("http://localhost:8500"); }
+                using ConsulClient consulClient = new(options => options.Address = consulUri);
+                foreach(Uri address in app.GetAddresses())
+                { await consulClient.Agent.ServiceDeregister($"{serviceName}:{address}");}
+                return app;
+            }
+            catch (Exception excption)
+            {
+                if (exceptionHandler is not null)
+                {
+                    await exceptionHandler.Invoke(excption);
+                    return app;
+                }
+                else { throw; }
+            }
         }
     }
 }

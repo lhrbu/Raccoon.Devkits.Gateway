@@ -14,11 +14,14 @@ namespace Raccoon.Devkits.Gateway.Client
 {
     public static class ConsulProviderExtensions
     {
-        public static IApplicationBuilder UseConsulAsServiceProvider(this IApplicationBuilder app, string serviceName,Uri? consulUri=null)
+        public static IApplicationBuilder UseConsulAsServiceProvider(this IApplicationBuilder app, 
+            string serviceName,
+            Uri? consulUri=null,
+            Func<Exception, Task>? exceptionHandler = null)
         {
             IHostApplicationLifetime appLifeTime = app.ApplicationServices.GetRequiredService<IHostApplicationLifetime>();
-            appLifeTime.ApplicationStarted.Register(() => app.RegisterToConsulAsync(serviceName, consulUri).Wait());
-            appLifeTime.ApplicationStopped.Register(() => app.DeregisterFromConsulAsync(serviceName, consulUri).Wait());
+            appLifeTime.ApplicationStarted.Register(() => app.RegisterToConsulAsync(serviceName, consulUri,exceptionHandler).Wait());
+            appLifeTime.ApplicationStopped.Register(() => app.DeregisterFromConsulAsync(serviceName, consulUri,exceptionHandler).Wait());
             return app;
         }
         public static IEnumerable<Uri> GetAddresses(this IApplicationBuilder app)=> app.ServerFeatures
